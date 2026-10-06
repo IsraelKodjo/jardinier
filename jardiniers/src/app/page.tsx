@@ -109,7 +109,7 @@ export default function Home() {
                 { name: "Oignons Jaunes", price: "900", delay: "100 jours", img: "https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?q=80&w=400&auto=format&fit=crop" },
               ].map((culture, idx) => (
                 <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-                  <div className="aspect-video bg-gray-100 relative">
+                  <div className="h-48 w-full bg-gray-100 relative overflow-hidden">
                      <img 
                        src={culture.img} 
                        alt={culture.name} 
@@ -133,18 +133,18 @@ export default function Home() {
                         <span className="font-medium text-gray-900">{culture.delay}</span>
                       </p>
                     </div>
-                    <button className="w-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-2 px-4 rounded-md text-sm transition-colors shadow-sm">
+                    <Link href="/connexion" className="w-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-2 px-4 rounded-md text-sm transition-colors shadow-sm text-center block">
                       Commander
-                    </button>
+                    </Link>
                   </div>
                 </div>
               ))}
             </div>
             
             <div className="mt-10 text-center">
-              <button className="inline-flex items-center justify-center px-6 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors shadow-sm">
+              <Link href="/connexion" className="inline-flex items-center justify-center px-6 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors shadow-sm">
                 Voir toutes les cultures
-              </button>
+              </Link>
             </div>
           </div>
         </section>
