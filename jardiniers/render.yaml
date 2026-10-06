@@ -1,0 +1,14 @@
+version: "1"
+services:
+  - type: web
+    name: jardiniers-app
+    env: node
+    region: frankfurt # Optionnel, on peut laisser Render choisir
+    plan: free # Plan gratuit par défaut pour tester
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
