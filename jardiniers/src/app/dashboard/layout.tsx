@@ -28,7 +28,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Contrôle Phytosanitaire', href: '/dashboard/tracabilite', icon: ShieldCheck, roles: ["CONTROLEUR"] },
     
     // Vues Admin / Admin Supérieur
-    { name: 'Validation Comptes', href: '/dashboard/validation-comptes', icon: ShieldAlert, roles: ["ADMIN_SUP", "ADMIN"] },
     { name: 'Catalogue Cultures', href: '/dashboard/catalogue', icon: Sprout, roles: ["ADMIN_SUP", "ADMIN"] },
     { name: 'Rapports & Agrégations', href: '/dashboard/rapports', icon: Layers, roles: ["ADMIN_SUP", "ADMIN"] },
     { name: 'Paramètres Système', href: '/dashboard/parametres', icon: Settings, roles: ["ADMIN_SUP"] },

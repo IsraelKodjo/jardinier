@@ -15,9 +15,9 @@ export default function adminLayout({ children }: { children: React.ReactNode })
         icon: LayoutDashboard
     },
     {
-        name: "Validation Comptes",
-        href: "/admin/validation-comptes",
-        icon: ShieldAlert
+        name: "Commandes Reçues",
+        href: "/admin/commandes",
+        icon: ShoppingBag
     },
     {
         name: "Catalogue Cultures",
