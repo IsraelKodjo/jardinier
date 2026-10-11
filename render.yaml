@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: jardinier
+    runtime: docker
+    dockerfilePath: ./jardiniers/Dockerfile
+    dockerContext: ./jardiniers
+    plan: free
+    region: frankfurt
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false

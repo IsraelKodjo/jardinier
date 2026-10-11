@@ -1,14 +1,19 @@
-version: "1"
 services:
   - type: web
-    name: jardiniers-app
-    env: node
-    region: frankfurt # Optionnel, on peut laisser Render choisir
-    plan: free # Plan gratuit par défaut pour tester
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
+    name: jardinier
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: frankfurt
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
