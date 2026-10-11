@@ -9,6 +9,8 @@ interface PageProps {
   searchParams: Promise<{ culture?: string }>;
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function NouvelleCommandePage(props: PageProps) {
   const session = await getServerSession(authOptions);
 

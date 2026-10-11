@@ -3,6 +3,8 @@ import { commandes, users } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import AdminCommandesView, { AdminOrder } from "./AdminCommandesView";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminCommandesPage() {
   // Récupération de toutes les commandes avec les informations du client depuis MySQL
   const allOrders = await db

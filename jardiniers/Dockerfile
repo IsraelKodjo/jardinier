@@ -18,6 +18,10 @@ COPY . .
 
 # Next.js telemetry is disabled
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+ENV DATABASE_URL="mysql://root:password@localhost:3306/jardiniers"
+ENV NEXTAUTH_SECRET="build-time-secret-placeholder"
+ENV NEXTAUTH_URL="http://localhost:3000"
 
 RUN npm run build
 

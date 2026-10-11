@@ -6,6 +6,8 @@ import { commandes } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import CommandesView from "./CommandesView";
 
+export const dynamic = "force-dynamic";
+
 export default async function MesCommandesPage() {
   const session = await getServerSession(authOptions);
 

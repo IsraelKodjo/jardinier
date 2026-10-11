@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { cultures, commandes, users } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboard() {
   // Récupération des données réelles depuis MySQL
   const allCultures = await db.select().from(cultures);
