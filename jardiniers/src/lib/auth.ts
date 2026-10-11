@@ -7,7 +7,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "jardinier-secret-fallback-token-key-32chars",
   adapter: DrizzleAdapter(db) as any,
   session: {
     strategy: "jwt", // Obligatoire pour CredentialsProvider

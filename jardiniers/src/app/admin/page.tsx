@@ -1,4 +1,16 @@
-import { ArrowRight, ShoppingBag, Sprout, TrendingUp, Layers, Users, Clock, Calendar, MapPin } from "lucide-react";
+import {
+  ArrowRight,
+  ShoppingBag,
+  Sprout,
+  TrendingUp,
+  Layers,
+  Users,
+  Clock,
+  Calendar,
+  MapPin,
+  AlertTriangle,
+  Database,
+} from "lucide-react";
 import Link from "next/link";
 import { db } from "@/db";
 import { cultures, commandes, users } from "@/db/schema";
@@ -7,25 +19,34 @@ import { desc, eq } from "drizzle-orm";
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
-  // Récupération des données réelles depuis MySQL
-  const allCultures = await db.select().from(cultures);
-  const allOrders = await db
-    .select({
-      id: commandes.id,
-      clientId: commandes.clientId,
-      clientName: users.name,
-      cultureName: commandes.cultureName,
-      quantite: commandes.quantite,
-      dateLivraison: commandes.dateLivraison,
-      adresseLivraison: commandes.adresseLivraison,
-      status: commandes.status,
-      createdAt: commandes.createdAt,
-    })
-    .from(commandes)
-    .leftJoin(users, eq(commandes.clientId, users.id))
-    .orderBy(desc(commandes.createdAt));
+  let allCultures: any[] = [];
+  let allOrders: any[] = [];
+  let allUsers: any[] = [];
+  let dbError: string | null = null;
 
-  const allUsers = await db.select().from(users);
+  try {
+    allCultures = await db.select().from(cultures);
+    allOrders = await db
+      .select({
+        id: commandes.id,
+        clientId: commandes.clientId,
+        clientName: users.name,
+        cultureName: commandes.cultureName,
+        quantite: commandes.quantite,
+        dateLivraison: commandes.dateLivraison,
+        adresseLivraison: commandes.adresseLivraison,
+        status: commandes.status,
+        createdAt: commandes.createdAt,
+      })
+      .from(commandes)
+      .leftJoin(users, eq(commandes.clientId, users.id))
+      .orderBy(desc(commandes.createdAt));
+
+    allUsers = await db.select().from(users);
+  } catch (err: any) {
+    console.error("Erreur de connexion MySQL :", err);
+    dbError = err?.message || "Impossible de joindre la base de données MySQL.";
+  }
 
   const pendingOrdersCount = allOrders.filter((o) => o.status === "EN_ATTENTE").length;
 
@@ -97,6 +118,39 @@ export default async function AdminDashboard() {
         )}
       </div>
 
+      {/* BANNIÈRE D'AIDE SI LA BASE EST DÉCONNECTÉE */}
+      {dbError && (
+        <div className="mb-8 p-6 bg-amber-50 border border-amber-300 rounded-2xl shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-amber-100 rounded-xl text-amber-700 shrink-0">
+              <Database className="w-6 h-6" />
+            </div>
+            <div className="flex-1 space-y-2">
+              <h3 className="font-extrabold text-amber-900 text-lg">
+                Configuration requise : Base de données MySQL non connectée
+              </h3>
+              <p className="text-sm text-amber-800">
+                Le serveur Render fonctionne parfaitement, mais votre variable <code>DATABASE_URL</code> doit être configurée pour se connecter à votre base en ligne.
+              </p>
+              <div className="p-2.5 bg-white/80 border border-amber-200 rounded-lg text-xs font-mono text-amber-950">
+                Détail : {dbError}
+              </div>
+              <div className="pt-2 text-xs text-amber-900 space-y-1">
+                <p className="font-bold">👉 Pour connecter votre base MySQL sur Render :</p>
+                <ol className="list-decimal list-inside pl-1 space-y-1">
+                  <li>Allez sur le dashboard Render &rarr; cliquez sur votre service <strong>jardinier</strong>.</li>
+                  <li>Dans le menu de gauche, ouvrez l'onglet <strong>Environment</strong>.</li>
+                  <li>Ajoutez la variable <code>DATABASE_URL</code> avec l'adresse de votre base MySQL (ex: Aiven, TiDB, Clever Cloud).</li>
+                  <li>
+                    Visitez ensuite <Link href="/api/db-init" className="underline font-bold text-blue-700">/api/db-init</Link> pour créer les tables automatiquement en 1 seconde !
+                  </li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* STATS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {stats.map((stat, i) => (
@@ -119,15 +173,15 @@ export default async function AdminDashboard() {
           <Link
             key={i}
             href={act.href}
-            className={`${act.color} ${act.text} p-5 rounded-xl shadow-sm flex flex-col justify-between transition-colors h-32 hover:opacity-95`}
+            className={`${act.color} ${act.text} p-6 rounded-xl shadow-sm flex flex-col justify-between transition-all hover:shadow-md h-36`}
           >
-            <div className="flex justify-between items-start">
-              <act.icon className={`w-8 h-8 ${act.text === "text-white" ? "text-white" : "text-green-600"}`} />
-              <ArrowRight className={`w-5 h-5 ${act.text === "text-white" ? "text-white/80" : "text-gray-400"}`} />
-            </div>
             <div>
-              <span className="font-bold text-lg block">{act.name}</span>
-              <span className={`text-xs ${act.text === "text-white" ? "text-white/80" : "text-gray-500"}`}>{act.desc}</span>
+              <div className="flex items-center justify-between">
+                <act.icon className="w-7 h-7" />
+                <ArrowRight className="w-5 h-5 opacity-60" />
+              </div>
+              <h3 className="text-lg font-bold mt-3">{act.name}</h3>
+              <p className="text-xs opacity-75 mt-1">{act.desc}</p>
             </div>
           </Link>
         ))}
