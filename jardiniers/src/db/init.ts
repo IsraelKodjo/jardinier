@@ -1,11 +1,10 @@
-import { db } from "./index";
-import { sql } from "drizzle-orm";
+import { db, poolConnection } from "./index";
 import { cultures } from "./schema";
 
 export async function ensureDatabaseInitialized() {
   try {
-    // 1. Tables Utilisateurs & Auth
-    await db.execute(sql`
+    // 1. Tables Utilisateurs & Auth (Exécutées via poolConnection brut sans formatage Drizzle)
+    await poolConnection.query(`
       CREATE TABLE IF NOT EXISTS \`user\` (
         \`id\` varchar(255) NOT NULL PRIMARY KEY,
         \`name\` varchar(255),
@@ -15,10 +14,10 @@ export async function ensureDatabaseInitialized() {
         \`emailVerified\` timestamp NULL,
         \`image\` varchar(255),
         \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP
-      )
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    await db.execute(sql`
+    await poolConnection.query(`
       CREATE TABLE IF NOT EXISTS \`account\` (
         \`userId\` varchar(255) NOT NULL,
         \`type\` varchar(255) NOT NULL,
@@ -32,19 +31,19 @@ export async function ensureDatabaseInitialized() {
         \`id_token\` varchar(255),
         \`session_state\` varchar(255),
         PRIMARY KEY (\`provider\`, \`providerAccountId\`)
-      )
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    await db.execute(sql`
+    await poolConnection.query(`
       CREATE TABLE IF NOT EXISTS \`session\` (
         \`sessionToken\` varchar(255) NOT NULL PRIMARY KEY,
         \`userId\` varchar(255) NOT NULL,
         \`expires\` timestamp NOT NULL
-      )
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
     // 2. Table Cultures
-    await db.execute(sql`
+    await poolConnection.query(`
       CREATE TABLE IF NOT EXISTS \`culture\` (
         \`id\` varchar(50) NOT NULL PRIMARY KEY,
         \`name\` varchar(255) NOT NULL,
@@ -56,11 +55,11 @@ export async function ensureDatabaseInitialized() {
         \`image\` varchar(500),
         \`available\` boolean DEFAULT true,
         \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP
-      )
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
     // 3. Table Commandes
-    await db.execute(sql`
+    await poolConnection.query(`
       CREATE TABLE IF NOT EXISTS \`commande\` (
         \`id\` varchar(100) NOT NULL PRIMARY KEY,
         \`clientId\` varchar(255) NOT NULL,
@@ -74,7 +73,7 @@ export async function ensureDatabaseInitialized() {
         \`dateLancement\` varchar(50),
         \`quantiteComplementaire\` varchar(255),
         \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP
-      )
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
     // 4. Insertion initiale des cultures si la table est vide

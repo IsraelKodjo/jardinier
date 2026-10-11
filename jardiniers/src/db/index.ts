@@ -12,7 +12,7 @@ const isLocal =
   databaseUrl.includes("jardinier-mysql");
 
 // Création du pool de connexion MySQL avec support SSL automatique pour le cloud
-const poolConnection = mysql.createPool({
+export const poolConnection = mysql.createPool({
   uri: databaseUrl,
   ssl: !isLocal && !databaseUrl.includes("ssl=") ? { rejectUnauthorized: false } : undefined,
   waitForConnections: true,
