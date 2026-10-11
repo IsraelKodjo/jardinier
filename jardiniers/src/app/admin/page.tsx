@@ -15,6 +15,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { cultures, commandes, users } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
+import { ensureDatabaseInitialized } from "@/db/init";
 
 export const dynamic = "force-dynamic";
 
@@ -26,26 +27,50 @@ export default async function AdminDashboard() {
 
   try {
     allCultures = await db.select().from(cultures);
-    allOrders = await db
-      .select({
-        id: commandes.id,
-        clientId: commandes.clientId,
-        clientName: users.name,
-        cultureName: commandes.cultureName,
-        quantite: commandes.quantite,
-        dateLivraison: commandes.dateLivraison,
-        adresseLivraison: commandes.adresseLivraison,
-        status: commandes.status,
-        createdAt: commandes.createdAt,
-      })
-      .from(commandes)
-      .leftJoin(users, eq(commandes.clientId, users.id))
-      .orderBy(desc(commandes.createdAt));
-
-    allUsers = await db.select().from(users);
   } catch (err: any) {
-    console.error("Erreur de connexion MySQL :", err);
-    dbError = err?.message || "Impossible de joindre la base de données MySQL.";
+    console.warn("Tentative d'initialisation automatique des tables :", err?.message);
+    if (
+      err?.message?.includes("doesn't exist") ||
+      err?.message?.includes("Failed query") ||
+      err?.message?.includes("1146")
+    ) {
+      const initResult = await ensureDatabaseInitialized();
+      if (initResult.success) {
+        try {
+          allCultures = await db.select().from(cultures);
+        } catch (retryErr: any) {
+          dbError = retryErr?.message;
+        }
+      } else {
+        dbError = initResult.error;
+      }
+    } else {
+      dbError = err?.message || "Impossible de joindre la base de données MySQL.";
+    }
+  }
+
+  if (!dbError) {
+    try {
+      allOrders = await db
+        .select({
+          id: commandes.id,
+          clientId: commandes.clientId,
+          clientName: users.name,
+          cultureName: commandes.cultureName,
+          quantite: commandes.quantite,
+          dateLivraison: commandes.dateLivraison,
+          adresseLivraison: commandes.adresseLivraison,
+          status: commandes.status,
+          createdAt: commandes.createdAt,
+        })
+        .from(commandes)
+        .leftJoin(users, eq(commandes.clientId, users.id))
+        .orderBy(desc(commandes.createdAt));
+
+      allUsers = await db.select().from(users);
+    } catch (orderErr: any) {
+      console.warn("Erreur chargement commandes/utilisateurs :", orderErr?.message);
+    }
   }
 
   const pendingOrdersCount = allOrders.filter((o) => o.status === "EN_ATTENTE").length;
