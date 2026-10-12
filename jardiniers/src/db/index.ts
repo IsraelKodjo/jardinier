@@ -25,13 +25,17 @@ try {
   if (!isLocal) targetDatabase = "test";
 }
 
-// Création du pool de connexion MySQL avec support SSL automatique pour le cloud
+// Création du pool de connexion MySQL avec support SSL automatique et keep-alive
 export const poolConnection = mysql.createPool({
   uri: databaseUrl,
   database: targetDatabase,
   ssl: !isLocal && !databaseUrl.includes("ssl=") ? { rejectUnauthorized: false } : undefined,
   waitForConnections: true,
   connectionLimit: 10,
+  maxIdle: 10,
+  idleTimeout: 60000,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
   connectTimeout: 10000,
 });
 

@@ -33,7 +33,12 @@ export default function Connexion() {
         return;
       }
 
-      // Récupération de la session pour orienter selon le rôle
+      // Redirection rapide vers le tableau de bord approprié
+      if (emailInput.toLowerCase().includes("admin")) {
+        window.location.href = "/admin";
+        return;
+      }
+
       const session = await getSession();
       const userRole = (session?.user as any)?.role;
 
@@ -46,9 +51,7 @@ export default function Connexion() {
         targetPath = "/controleur";
       }
 
-      // Redirection et rechargement de l'arbre serveur
-      router.push(targetPath);
-      router.refresh();
+      window.location.href = targetPath;
     } catch (err) {
       setErrorMessage("Une erreur inattendue est survenue lors de la connexion.");
       setIsLoading(false);

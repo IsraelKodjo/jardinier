@@ -2,7 +2,13 @@ import { db, poolConnection, targetDatabase } from "./index";
 import { cultures, users } from "./schema";
 import { eq } from "drizzle-orm";
 
+let isInitialized = false;
+
 export async function ensureDatabaseInitialized() {
+  if (isInitialized) {
+    return { success: true };
+  }
+
   try {
     const dbName = targetDatabase || "test";
 
@@ -182,6 +188,7 @@ export async function ensureDatabaseInitialized() {
       }).where(eq(users.email, "client@jardiniers.com"));
     }
 
+    isInitialized = true;
     return { success: true };
   } catch (err: any) {
     console.error("Erreur lors de ensureDatabaseInitialized :", err);
