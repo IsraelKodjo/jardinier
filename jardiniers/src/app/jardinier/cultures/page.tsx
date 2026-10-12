@@ -124,10 +124,21 @@ export default function MesCultures() {
                   <tr key={prod.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center mr-3 border border-green-100">
-                          <Sprout className="h-5 w-5 text-green-600" />
+                        {prod.image ? (
+                          <img
+                            src={prod.image}
+                            alt={prod.cultureName}
+                            className="w-10 h-10 rounded-xl object-cover mr-3 border border-gray-200 shrink-0 shadow-2xs"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center mr-3 border border-green-100 text-green-600 shrink-0">
+                            <Sprout className="h-5 w-5" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="text-sm font-bold text-gray-900">{prod.cultureName}</div>
+                          <div className="text-[11px] text-gray-400 font-mono">{prod.id}</div>
                         </div>
-                        <div className="text-sm font-bold text-gray-900">{prod.cultureName}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

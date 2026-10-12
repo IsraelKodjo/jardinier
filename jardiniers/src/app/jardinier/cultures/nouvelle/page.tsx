@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, CheckCircle2, Calendar, MapPin, Sprout, TrendingUp, Maximize, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Calendar, MapPin, Sprout, TrendingUp, Maximize, Loader2, Camera, X, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -17,6 +17,9 @@ export default function PublierCulture() {
   const [culturesList, setCulturesList] = useState<any[]>([]);
   const [parcellesList, setParcellesList] = useState<any[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [customImage, setCustomImage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     cultureId: "",
@@ -53,6 +56,35 @@ export default function PublierCulture() {
 
   const selectedCulture = culturesList.find((c) => c.id === formData.cultureId);
   const selectedParcelle = parcellesList.find((p) => p.id === formData.parcelleId);
+
+  const activeImage = customImage || selectedCulture?.image || null;
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const data = new FormData();
+      data.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: data,
+      });
+
+      const result = await res.json();
+      if (result.url) {
+        setCustomImage(result.url);
+      } else {
+        alert(result.error || "Erreur lors du téléversement de l'image.");
+      }
+    } catch (err) {
+      alert("Impossible d'envoyer l'image.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const calculateDisponibilite = () => {
     if (!selectedCulture || !formData.dateSemis) return null;
@@ -93,6 +125,7 @@ export default function PublierCulture() {
       rendementEstime: Number(formData.rendementEstime) || 0,
       dateSemis: formData.dateSemis,
       dateDispo: dateDispoFormatted,
+      image: activeImage || undefined,
     });
 
     if (res.success) {
@@ -282,6 +315,92 @@ export default function PublierCulture() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Photo de la production */}
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Photo de la production / parcelle
+                </label>
+                <div className="p-4 rounded-2xl border border-gray-200 bg-gray-50/70 flex flex-col sm:flex-row items-center gap-5">
+                  {/* Prévisualisation */}
+                  <div className="relative w-28 h-28 rounded-xl overflow-hidden bg-white border border-gray-200 shadow-xs shrink-0 flex items-center justify-center">
+                    {activeImage ? (
+                      <img
+                        src={activeImage}
+                        alt="Aperçu production"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-gray-400 p-2 text-center">
+                        <Camera className="w-7 h-7 mb-1 text-gray-400" />
+                        <span className="text-[10px]">Aucune photo</span>
+                      </div>
+                    )}
+                    {customImage && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomImage(null)}
+                        className="absolute top-1.5 right-1.5 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 shadow-sm transition-colors cursor-pointer"
+                        title="Supprimer la photo personnalisée"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Actions & info */}
+                  <div className="flex-1 text-center sm:text-left space-y-2">
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                      <label className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:border-green-600 hover:text-green-700 text-gray-700 text-xs font-semibold rounded-xl cursor-pointer shadow-xs transition-all">
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-green-600" />
+                            <span>Téléversement...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Camera className="w-4 h-4 text-green-600" />
+                            <span>{customImage ? "Changer la photo" : "Prendre / Ajouter une photo"}</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={isUploading}
+                          onChange={handleImageUpload}
+                        />
+                      </label>
+
+                      {customImage && (
+                        <button
+                          type="button"
+                          onClick={() => setCustomImage(null)}
+                          className="px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                        >
+                          Rétablir l'image catalogue
+                        </button>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                      {customImage ? (
+                        <span className="text-emerald-700 font-medium">
+                          ✓ Votre photo réelle a été téléchargée avec succès et sera associée à cette production.
+                        </span>
+                      ) : selectedCulture?.image ? (
+                        <span>
+                          Photo standard issue du catalogue. Vous pouvez prendre une photo de vos plants sur le terrain pour la remplacer.
+                        </span>
+                      ) : (
+                        <span>
+                          Prenez une photo de vos semis, plants ou de la parcelle depuis votre smartphone ou PC.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 

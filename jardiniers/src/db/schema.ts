@@ -178,6 +178,7 @@ export const productions = mysqlTable("production", {
   rendementEstime: int("rendementEstime").notNull(),
   dateSemis: varchar("dateSemis", { length: 50 }),
   dateDispo: varchar("dateDispo", { length: 50 }),
+  image: varchar("image", { length: 500 }), // Photo réelle de la production prise par le jardinier
   status: varchar("status", { length: 50 }).default("EN_COURS"),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
 });

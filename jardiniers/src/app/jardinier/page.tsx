@@ -246,9 +246,17 @@ export default function JardinierDashboard() {
                   className="p-3.5 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700">
-                      <Sprout className="w-4 h-4" />
-                    </div>
+                    {pr.image ? (
+                      <img
+                        src={pr.image}
+                        alt={pr.cultureName}
+                        className="w-9 h-9 rounded-lg object-cover border border-gray-200 shrink-0 shadow-2xs"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 shrink-0">
+                        <Sprout className="w-4 h-4" />
+                      </div>
+                    )}
                     <div>
                       <h4 className="text-sm font-bold text-gray-900">{pr.cultureName}</h4>
                       <p className="text-[11px] text-gray-500">

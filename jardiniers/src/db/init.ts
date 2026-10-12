@@ -120,10 +120,18 @@ export async function ensureDatabaseInitialized() {
         \`rendementEstime\` int NOT NULL,
         \`dateSemis\` varchar(50),
         \`dateDispo\` varchar(50),
+        \`image\` varchar(500),
         \`status\` varchar(50) DEFAULT 'EN_COURS',
         \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    // Migration douce pour s'assurer que la colonne image existe
+    try {
+      await poolConnection.query(`ALTER TABLE \`${dbName}\`.\`production\` ADD COLUMN \`image\` varchar(500);`);
+    } catch {
+      // Ignorer si la colonne existe déjà
+    }
 
     // 6. Insertion initiale des cultures si la table est vide
     const existingCultures = await db.select().from(cultures);

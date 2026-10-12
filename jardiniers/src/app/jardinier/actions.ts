@@ -119,6 +119,7 @@ export async function getJardinierProductionsAction() {
         rendementEstime: productions.rendementEstime,
         dateSemis: productions.dateSemis,
         dateDispo: productions.dateDispo,
+        image: productions.image,
         status: productions.status,
         createdAt: productions.createdAt,
       })
@@ -143,6 +144,7 @@ export async function createProductionAction(data: {
   rendementEstime: number;
   dateSemis: string;
   dateDispo: string;
+  image?: string;
 }) {
   await ensureInit();
   const jardinierId = await getConnectedJardinierId();
@@ -163,6 +165,7 @@ export async function createProductionAction(data: {
       rendementEstime: Number(data.rendementEstime) || 0,
       dateSemis: data.dateSemis,
       dateDispo: data.dateDispo,
+      image: data.image || null,
       status: "EN_COURS",
     });
 
