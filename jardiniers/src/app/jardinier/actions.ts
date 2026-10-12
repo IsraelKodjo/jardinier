@@ -13,8 +13,18 @@ async function getConnectedJardinierId(): Promise<string | null> {
   return (session?.user as any)?.id || null;
 }
 
+async function ensureInit() {
+  try {
+    const { ensureDatabaseInitialized } = await import("@/db/init");
+    await ensureDatabaseInitialized();
+  } catch (e) {
+    console.error("Init DB jardinier action :", e);
+  }
+}
+
 // 2. Récupérer toutes les parcelles du jardinier connecté
 export async function getJardinierParcellesAction() {
+  await ensureInit();
   const jardinierId = await getConnectedJardinierId();
   if (!jardinierId) return [];
 
@@ -40,6 +50,7 @@ export async function createParcelleAction(data: {
   lng?: string;
   coordinates?: string;
 }) {
+  await ensureInit();
   const jardinierId = await getConnectedJardinierId();
   if (!jardinierId) {
     return { success: false, error: "Vous devez être connecté pour déclarer une parcelle." };
@@ -49,12 +60,13 @@ export async function createParcelleAction(data: {
     const year = new Date().getFullYear();
     const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     const id = `PARC-${year}-${randomCode}`;
+    const cleanSurface = (data.surface || "1.0").replace(",", ".");
 
     await db.insert(parcelles).values({
       id,
       jardinierId,
       location: data.location || "Parcelle Agricole (GPS)",
-      surface: data.surface || "1.0",
+      surface: cleanSurface,
       lat: data.lat || null,
       lng: data.lng || null,
       coordinates: data.coordinates || null,
@@ -91,6 +103,7 @@ export async function deleteParcelleAction(parcelleId: string) {
 
 // 5. Récupérer toutes les productions du jardinier
 export async function getJardinierProductionsAction() {
+  await ensureInit();
   const jardinierId = await getConnectedJardinierId();
   if (!jardinierId) return [];
 
@@ -131,6 +144,7 @@ export async function createProductionAction(data: {
   dateSemis: string;
   dateDispo: string;
 }) {
+  await ensureInit();
   const jardinierId = await getConnectedJardinierId();
   if (!jardinierId) {
     return { success: false, error: "Vous devez être connecté pour publier une culture." };
