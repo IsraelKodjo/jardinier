@@ -4,7 +4,7 @@ import { Leaf, LayoutDashboard, ShoppingBag, Map, Sprout, Settings, LogOut, Menu
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export default function jardinierLayout({ children }: { children: React.ReactNode }) {
+export default function JardinierLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 

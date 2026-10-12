@@ -2,7 +2,7 @@
 import { ArrowRight, ShoppingBag, Map, Sprout, TrendingUp, Clock, CheckCircle, ShieldAlert, ShieldCheck, Users, Layers } from "lucide-react";
 import Link from "next/link";
 
-export default function jardinierDashboard() {
+export default function JardinierDashboard() {
   const stats = [
     {
         name: "Parcelles déclarées",
