@@ -137,6 +137,28 @@ export async function ensureDatabaseInitialized() {
         },
       ]);
     }
+
+    // 5. Insertion initiale des comptes utilisateurs par défaut
+    const existingUsers = await db.select().from(users);
+    if (existingUsers.length === 0) {
+      await db.insert(users).values([
+        {
+          id: "admin-default-id",
+          name: "Administrateur",
+          email: "admin@jardiniers.com",
+          password: "$2b$10$5NaIxprh7mfc1uXw6hhkZOCODxVn.HCWYL6WCozCY4e3DT8webEfq", // Admin1234!
+          role: "admin",
+        },
+        {
+          id: "client-demo-id",
+          name: "Client Démo",
+          email: "client@jardiniers.com",
+          password: "$2b$10$jL6RxR6hTmiDqLyyL.jJbOVUsIZj0qDvxy203MAFqIf5hZ0OfJ8Xq", // Password123!
+          role: "client",
+        },
+      ]);
+    }
+
     return { success: true };
   } catch (err: any) {
     console.error("Erreur lors de ensureDatabaseInitialized :", err);
