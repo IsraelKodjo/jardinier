@@ -93,7 +93,39 @@ export async function ensureDatabaseInitialized() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    // 4. Insertion initiale des cultures si la table est vide
+    // 4. Table Parcelles (Terrains agricoles tracés par GPS)
+    await poolConnection.query(`
+      CREATE TABLE IF NOT EXISTS \`${dbName}\`.\`parcelle\` (
+        \`id\` varchar(100) NOT NULL PRIMARY KEY,
+        \`jardinierId\` varchar(255) NOT NULL,
+        \`location\` varchar(255) NOT NULL,
+        \`surface\` varchar(50) NOT NULL,
+        \`lat\` varchar(50),
+        \`lng\` varchar(50),
+        \`coordinates\` varchar(2000),
+        \`status\` varchar(50) DEFAULT 'EN_ATTENTE',
+        \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    // 5. Table Productions (Cultures enregistrées par les jardiniers sur leurs parcelles)
+    await poolConnection.query(`
+      CREATE TABLE IF NOT EXISTS \`${dbName}\`.\`production\` (
+        \`id\` varchar(100) NOT NULL PRIMARY KEY,
+        \`jardinierId\` varchar(255) NOT NULL,
+        \`parcelleId\` varchar(100) NOT NULL,
+        \`cultureId\` varchar(50) NOT NULL,
+        \`cultureName\` varchar(255) NOT NULL,
+        \`surfaceUtilisee\` varchar(50) NOT NULL,
+        \`rendementEstime\` int NOT NULL,
+        \`dateSemis\` varchar(50),
+        \`dateDispo\` varchar(50),
+        \`status\` varchar(50) DEFAULT 'EN_COURS',
+        \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    // 6. Insertion initiale des cultures si la table est vide
     const existingCultures = await db.select().from(cultures);
     if (existingCultures.length === 0) {
       await db.insert(cultures).values([

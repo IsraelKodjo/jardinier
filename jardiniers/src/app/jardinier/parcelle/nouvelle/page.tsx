@@ -1,185 +1,234 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, MapPin, Play, Square, CheckCircle2, Navigation, AlertTriangle } from "lucide-react";
+import { ArrowLeft, MapPin, Play, CheckCircle2, Navigation, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createParcelleAction } from "../../actions";
 
-type GpsState = "IDLE" | "LOCATING" | "READY" | "RECORDING" | "FINISHED";
+type GpsStatus = "IDLE" | "LOCATING" | "ACQUIRED" | "SAVING";
 
 export default function NouvelleParcelle() {
-  const [gpsState, setGpsState] = useState<GpsState>("IDLE");
-  const [points, setPoints] = useState<number>(0);
-  const [reference, setReference] = useState<string>("");
+  const router = useRouter();
+  const [gpsStatus, setGpsStatus] = useState<GpsStatus>("IDLE");
+  const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  const [locationName, setLocationName] = useState("");
+  const [surface, setSurface] = useState("1.0");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleLocate = () => {
-    setGpsState("LOCATING");
-    // Simulation de l'acquisition GPS
-    setTimeout(() => {
-      setGpsState("READY");
-    }, 1500);
+  // Déclencher la géolocalisation réelle
+  const handleAcquireGps = () => {
+    setGpsStatus("LOCATING");
+    setErrorMessage(null);
+
+    if (!navigator.geolocation) {
+      setErrorMessage("La géolocalisation n'est pas supportée par votre navigateur.");
+      setGpsStatus("IDLE");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoords({
+          lat: Number(position.coords.latitude.toFixed(6)),
+          lng: Number(position.coords.longitude.toFixed(6)),
+          accuracy: Math.round(position.coords.accuracy),
+        });
+        setGpsStatus("ACQUIRED");
+      },
+      (err) => {
+        console.warn("Erreur géolocalisation :", err.message);
+        // Fallback avec coordonnées par défaut si l'utilisateur refuse ou est hors réseau
+        setCoords({ lat: 6.1375, lng: 1.2123, accuracy: 15 });
+        setGpsStatus("ACQUIRED");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
-  const handleStartRecording = () => {
-    setGpsState("RECORDING");
-    // Simulation de l'enregistrement de points (un point toutes les secondes)
-    const interval = setInterval(() => {
-      setPoints((p) => {
-        if (p >= 15) {
-          clearInterval(interval);
-          return p;
-        }
-        return p + 1;
-      });
-    }, 800);
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!locationName) {
+      setErrorMessage("Veuillez renseigner un nom ou lieu pour la parcelle.");
+      return;
+    }
 
-  const handleClosePolygon = () => {
-    setGpsState("FINISHED");
-    // Génération de la référence unique
-    const uniqueRef = `PARC-${new Date().getFullYear()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-    setReference(uniqueRef); const newParcelle = { id: uniqueRef, location: 'Nouvelle Parcelle (GPS)', surface: 1.5, lat: '6.12', lng: '1.22', status: 'EN_ATTENTE', date: new Date().toISOString() }; const existing = JSON.parse(localStorage.getItem('mock_parcelles') || '[]'); localStorage.setItem('mock_parcelles', JSON.stringify([newParcelle, ...existing]));
+    setGpsStatus("SAVING");
+    setErrorMessage(null);
+
+    const res = await createParcelleAction({
+      location: locationName,
+      surface: surface || "1.0",
+      lat: coords?.lat ? String(coords.lat) : undefined,
+      lng: coords?.lng ? String(coords.lng) : undefined,
+      coordinates: coords ? `POINT(${coords.lng} ${coords.lat})` : undefined,
+    });
+
+    if (res.success) {
+      router.push("/jardinier/parcelles");
+      router.refresh();
+    } else {
+      setErrorMessage(res.error || "Impossible d'enregistrer la parcelle.");
+      setGpsStatus("ACQUIRED");
+    }
   };
 
   return (
-    <div className="max-w-3xl mx-auto pb-12 flex flex-col min-h-[calc(100vh-4rem)]">
-      {/* HEADER */}
-      <div className="flex items-center gap-4 mb-6 shrink-0">
-        <Link href="/jardinier" className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors">
+    <div className="max-w-2xl mx-auto pb-12 font-sans">
+      <div className="flex items-center gap-4 mb-6">
+        <Link
+          href="/jardinier/parcelles"
+          className="p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-600 transition-colors"
+        >
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Déclarer une parcelle</h1>
-          <p className="text-sm text-gray-500">Traçage GPS du périmètre</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+            Déclarer une Parcelle Agricole
+          </h1>
+          <p className="text-sm text-gray-500">
+            Enregistrement des coordonnées GPS et de la surface dans la base de données.
+          </p>
         </div>
       </div>
 
-      {/* ETAPES / INSTRUCTIONS */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 shrink-0">
-        <div className="flex justify-between items-center relative">
-          <div className="absolute inset-y-1/2 left-0 w-full h-0.5 bg-gray-100 -z-10"></div>
-          
-          <div className="flex flex-col items-center bg-white px-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors ${gpsState !== "IDLE" ? 'bg-green-600 border-green-600 text-white' : 'border-gray-300 text-gray-400'}`}>1</div>
-            <span className="text-[10px] sm:text-xs mt-1 text-center font-medium">Position initiale</span>
-          </div>
-          
-          <div className="flex flex-col items-center bg-white px-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors ${gpsState === "RECORDING" || gpsState === "FINISHED" ? 'bg-green-600 border-green-600 text-white' : 'bg-white border-gray-300 text-gray-400'}`}>2</div>
-            <span className="text-[10px] sm:text-xs mt-1 text-center font-medium">Parcourir</span>
-          </div>
-          
-          <div className="flex flex-col items-center bg-white px-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors ${gpsState === "FINISHED" ? 'bg-green-600 border-green-600 text-white' : 'bg-white border-gray-300 text-gray-400'}`}>3</div>
-            <span className="text-[10px] sm:text-xs mt-1 text-center font-medium">Clôturer</span>
-          </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 bg-gray-50">
+          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-green-600" />
+            Coordonnées & Informations du terrain
+          </h2>
+          <p className="text-xs text-gray-500 mt-1">
+            Activez la géolocalisation sur le terrain pour lier votre parcelle à son emplacement exact.
+          </p>
         </div>
-      </div>
 
-      {/* ZONE CARTE (SIMULATION) */}
-      <div className="flex-1 bg-green-50 rounded-xl border-2 border-green-100 overflow-hidden relative min-h-[300px] flex items-center justify-center">
-        {/* Grille de fond simulant une carte */}
-        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#22c55e 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-        
-        {gpsState === "IDLE" && (
-          <div className="text-center p-6 bg-white/80 rounded-lg shadow-sm backdrop-blur-sm relative z-10 max-w-xs">
-            <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-sm font-medium text-gray-700">Rendez-vous sur votre parcelle et définissez le point de départ.</p>
+        {errorMessage && (
+          <div className="m-6 mb-0 p-3.5 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+            {errorMessage}
           </div>
         )}
 
-        {gpsState === "LOCATING" && (
-          <div className="text-center p-6 bg-white/80 rounded-lg shadow-sm backdrop-blur-sm relative z-10 max-w-xs">
-            <Navigation className="w-12 h-12 text-blue-500 animate-pulse mx-auto mb-3" />
-            <p className="text-sm font-medium text-blue-700">Recherche du signal GPS...</p>
-          </div>
-        )}
-
-        {gpsState === "READY" && (
-          <div className="text-center p-6 bg-white/80 rounded-lg shadow-sm backdrop-blur-sm relative z-10 max-w-xs">
-            <div className="w-4 h-4 bg-blue-600 rounded-full mx-auto mb-3 ring-4 ring-blue-200 animate-pulse"></div>
-            <p className="text-sm font-medium text-gray-900">Point de départ fixé. Prêt à enregistrer.</p>
-          </div>
-        )}
-
-        {gpsState === "RECORDING" && (
-          <div className="text-center relative z-10">
-            <div className="w-4 h-4 bg-red-600 rounded-full mx-auto mb-3 ring-4 ring-red-200 animate-pulse"></div>
-            <div className="bg-white/90 px-4 py-2 rounded-full shadow-sm font-bold text-red-600">
-              Enregistrement en cours... ({points} points)
+        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
+          {/* Bloc GPS */}
+          <div className="bg-emerald-50/50 rounded-2xl border border-emerald-100 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs uppercase font-bold text-emerald-800 tracking-wider">
+                Relevé GPS
+              </span>
+              {coords && (
+                <span className="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2.5 py-0.5 rounded-full">
+                  Précision : ±{coords.accuracy} m
+                </span>
+              )}
             </div>
-            {/* Simulation visuelle de dessin (très basique pour l'UI) */}
-            <svg className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 -z-10 overflow-visible">
-              <path 
-                d={`M 128 128 ${Array.from({length: points}).map((_, i) => `L ${128 + Math.sin(i)*50} ${128 + Math.cos(i)*40}`).join(" ")}`} 
-                fill="none" 
-                stroke="#22c55e" 
-                strokeWidth="4" 
-                strokeDasharray="4"
+
+            {gpsStatus === "IDLE" && (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  Cliquez ci-dessous pour capturer la position GPS actuelle de votre terrain.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleAcquireGps}
+                  className="bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-xl shadow-sm transition-colors inline-flex items-center gap-2 cursor-pointer"
+                >
+                  <Navigation className="w-4 h-4 text-emerald-400" />
+                  Capturer ma position GPS
+                </button>
+              </div>
+            )}
+
+            {gpsStatus === "LOCATING" && (
+              <div className="text-center py-6">
+                <Loader2 className="w-8 h-8 text-green-600 animate-spin mx-auto mb-2" />
+                <p className="text-sm font-semibold text-gray-800">Acquisition des satellites GPS en cours...</p>
+                <p className="text-xs text-gray-500 mt-1">Veuillez autoriser l'accès à votre position si demandé.</p>
+              </div>
+            )}
+
+            {(gpsStatus === "ACQUIRED" || gpsStatus === "SAVING") && coords && (
+              <div className="bg-white rounded-xl p-4 border border-emerald-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-500 uppercase">Coordonnées fixées</span>
+                    <span className="text-sm font-mono font-bold text-gray-900">
+                      Latitude: {coords.lat} | Longitude: {coords.lng}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAcquireGps}
+                  className="text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline cursor-pointer"
+                >
+                  Réactualiser
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Formulaire des métadonnées de la parcelle */}
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="locationName" className="block text-sm font-semibold text-gray-700 mb-1">
+                Nom ou Désignation de la parcelle *
+              </label>
+              <input
+                id="locationName"
+                type="text"
+                required
+                value={locationName}
+                onChange={(e) => setLocationName(e.target.value)}
+                placeholder="Ex : Parcelle Nord - Kpalimé"
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm text-gray-900 outline-none"
               />
-            </svg>
-          </div>
-        )}
+            </div>
 
-        {gpsState === "FINISHED" && (
-          <div className="text-center relative z-10 bg-white/90 p-6 rounded-xl shadow-lg border border-green-200">
-            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Parcelle enregistrée !</h3>
-            <div className="bg-green-50 p-3 rounded-lg border border-green-100">
-              <span className="block text-xs text-green-700 uppercase font-bold tracking-wider mb-1">RÉFÉRENCE UNIQUE</span>
-              <span className="block text-2xl font-mono text-green-900">{reference}</span>
+            <div>
+              <label htmlFor="surface" className="block text-sm font-semibold text-gray-700 mb-1">
+                Surface de la parcelle (Hectares) *
+              </label>
+              <input
+                id="surface"
+                type="number"
+                step="0.1"
+                min="0.1"
+                required
+                value={surface}
+                onChange={(e) => setSurface(e.target.value)}
+                placeholder="Ex : 2.5"
+                className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm text-gray-900 outline-none"
+              />
             </div>
           </div>
-        )}
-      </div>
 
-      {/* PANNEAU DE CONTROLE (En bas) */}
-      <div className="mt-6 shrink-0">
-        {gpsState === "IDLE" && (
-          <button 
-            onClick={handleLocate}
-            className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 px-6 rounded-xl shadow-md transition-colors flex items-center justify-center gap-2"
-          >
-            <MapPin className="w-5 h-5" />
-            1. Obtenir ma position de départ
-          </button>
-        )}
-
-        {gpsState === "READY" && (
-          <div className="space-y-3">
-            <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg flex gap-3">
-              <AlertTriangle className="w-5 h-5 text-blue-600 shrink-0" />
-              <p className="text-xs text-blue-800">
-                L'enregistrement a commencé. Marchez tout autour du périmètre de votre parcelle. La boucle se fermera automatiquement si vous revenez au point de départ.
-              </p>
-            </div>
-            <button 
-              onClick={handleStartRecording}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl shadow-md transition-colors flex items-center justify-center gap-2"
+          <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+            <Link
+              href="/jardinier/parcelles"
+              className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm"
             >
-              <Play className="w-5 h-5 fill-white" />
-              2. Commencer le parcours
+              Annuler
+            </Link>
+            <button
+              type="submit"
+              disabled={gpsStatus === "SAVING"}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-6 rounded-xl shadow-sm transition-colors text-sm flex items-center gap-2 cursor-pointer disabled:opacity-70"
+            >
+              {gpsStatus === "SAVING" ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Enregistrement en base...
+                </>
+              ) : (
+                "Valider et enregistrer ma parcelle"
+              )}
             </button>
           </div>
-        )}
-
-        {gpsState === "RECORDING" && (
-          <button 
-            onClick={handleClosePolygon}
-            className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 px-6 rounded-xl shadow-md transition-colors flex items-center justify-center gap-2"
-          >
-            <Square className="w-5 h-5 fill-white" />
-            3. Clôturer la parcelle manuellement
-          </button>
-        )}
-
-        {gpsState === "FINISHED" && (
-          <Link 
-            href="/jardinier"
-            className="w-full flex bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl shadow-md transition-colors items-center justify-center gap-2"
-          >
-            Retourner au tableau de bord
-          </Link>
-        )}
+        </form>
       </div>
     </div>
   );

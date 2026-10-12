@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Leaf, LayoutDashboard, ShoppingBag, Map, Sprout, Settings, LogOut, Menu, X, Bell, Layers, ShieldAlert, CheckCircle, ShieldCheck, Plus, MapPin, Users, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 export default function JardinierLayout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -37,10 +38,13 @@ export default function JardinierLayout({ children }: { children: React.ReactNod
         </nav>
         
         <div className="p-4 border-t border-gray-800">
-          <Link href="/" className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-gray-800 hover:text-white transition-all duration-200">
+          <button
+            onClick={() => signOut({ callbackUrl: "/connexion" })}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-gray-800 hover:text-white transition-all duration-200 cursor-pointer"
+          >
             <LogOut className="w-5 h-5" />
             <span className="font-medium text-sm">Déconnexion</span>
-          </Link>
+          </button>
         </div>
       </aside>
 

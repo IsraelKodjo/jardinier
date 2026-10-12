@@ -147,3 +147,37 @@ export const commandes = mysqlTable("commande", {
   quantiteComplementaire: varchar("quantiteComplementaire", { length: 255 }),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
 });
+
+// 6. Table des Parcelles agricoles (Déclarées par les jardiniers avec coordonnées GPS)
+export const parcelles = mysqlTable("parcelle", {
+  id: varchar("id", { length: 100 }).notNull().primaryKey(),
+  jardinierId: varchar("jardinierId", { length: 255 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  location: varchar("location", { length: 255 }).notNull(),
+  surface: varchar("surface", { length: 50 }).notNull(), // ex: "2.5" Hectares
+  lat: varchar("lat", { length: 50 }),
+  lng: varchar("lng", { length: 50 }),
+  coordinates: varchar("coordinates", { length: 2000 }), // Tracé ou polygones GPS
+  status: varchar("status", { length: 50 }).default("EN_ATTENTE"), // EN_ATTENTE, VALIDEE
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+});
+
+// 7. Table des Productions agricoles déclarées par les jardiniers
+export const productions = mysqlTable("production", {
+  id: varchar("id", { length: 100 }).notNull().primaryKey(),
+  jardinierId: varchar("jardinierId", { length: 255 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  parcelleId: varchar("parcelleId", { length: 100 })
+    .notNull()
+    .references(() => parcelles.id, { onDelete: "cascade" }),
+  cultureId: varchar("cultureId", { length: 50 }).notNull(),
+  cultureName: varchar("cultureName", { length: 255 }).notNull(),
+  surfaceUtilisee: varchar("surfaceUtilisee", { length: 50 }).notNull(),
+  rendementEstime: int("rendementEstime").notNull(),
+  dateSemis: varchar("dateSemis", { length: 50 }),
+  dateDispo: varchar("dateDispo", { length: 50 }),
+  status: varchar("status", { length: 50 }).default("EN_COURS"),
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+});
