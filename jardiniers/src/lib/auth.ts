@@ -27,8 +27,17 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        try {
+          const { ensureDatabaseInitialized } = await import("@/db/init");
+          await ensureDatabaseInitialized();
+        } catch (e) {
+          console.error("Erreur init DB dans authorize :", e);
+        }
+
+        const cleanEmail = credentials.email.trim().toLowerCase();
+
         // 1. Chercher l'utilisateur dans la base de données
-        const userResults = await db.select().from(users).where(eq(users.email, credentials.email));
+        const userResults = await db.select().from(users).where(eq(users.email, cleanEmail));
         const user = userResults[0];
 
         if (!user || !user.password) {

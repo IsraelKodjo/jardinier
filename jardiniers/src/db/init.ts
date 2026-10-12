@@ -1,5 +1,6 @@
 import { db, poolConnection } from "./index";
 import { cultures, users } from "./schema";
+import { eq } from "drizzle-orm";
 
 export async function ensureDatabaseInitialized() {
   try {
@@ -138,25 +139,37 @@ export async function ensureDatabaseInitialized() {
       ]);
     }
 
-    // 5. Insertion initiale des comptes utilisateurs par défaut
-    const existingUsers = await db.select().from(users);
-    if (existingUsers.length === 0) {
-      await db.insert(users).values([
-        {
-          id: "admin-default-id",
-          name: "Administrateur",
-          email: "admin@jardiniers.com",
-          password: "$2b$10$5NaIxprh7mfc1uXw6hhkZOCODxVn.HCWYL6WCozCY4e3DT8webEfq", // Admin1234!
-          role: "admin",
-        },
-        {
-          id: "client-demo-id",
-          name: "Client Démo",
-          email: "client@jardiniers.com",
-          password: "$2b$10$jL6RxR6hTmiDqLyyL.jJbOVUsIZj0qDvxy203MAFqIf5hZ0OfJ8Xq", // Password123!
-          role: "client",
-        },
-      ]);
+    // 5. Initialisation / mise à jour des comptes utilisateurs par défaut
+    const adminUser = await db.select().from(users).where(eq(users.email, "admin@jardiniers.com"));
+    if (adminUser.length === 0) {
+      await db.insert(users).values({
+        id: "admin-default-id",
+        name: "Administrateur",
+        email: "admin@jardiniers.com",
+        password: "$2b$10$5NaIxprh7mfc1uXw6hhkZOCODxVn.HCWYL6WCozCY4e3DT8webEfq", // Admin1234!
+        role: "admin",
+      });
+    } else {
+      await db.update(users).set({
+        password: "$2b$10$5NaIxprh7mfc1uXw6hhkZOCODxVn.HCWYL6WCozCY4e3DT8webEfq",
+        role: "admin",
+      }).where(eq(users.email, "admin@jardiniers.com"));
+    }
+
+    const clientUser = await db.select().from(users).where(eq(users.email, "client@jardiniers.com"));
+    if (clientUser.length === 0) {
+      await db.insert(users).values({
+        id: "client-demo-id",
+        name: "Client Démo",
+        email: "client@jardiniers.com",
+        password: "$2b$10$jL6RxR6hTmiDqLyyL.jJbOVUsIZj0qDvxy203MAFqIf5hZ0OfJ8Xq", // Password123!
+        role: "client",
+      });
+    } else {
+      await db.update(users).set({
+        password: "$2b$10$jL6RxR6hTmiDqLyyL.jJbOVUsIZj0qDvxy203MAFqIf5hZ0OfJ8Xq",
+        role: "client",
+      }).where(eq(users.email, "client@jardiniers.com"));
     }
 
     return { success: true };
