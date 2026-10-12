@@ -1,12 +1,22 @@
-import { db, poolConnection } from "./index";
+import { db, poolConnection, targetDatabase } from "./index";
 import { cultures, users } from "./schema";
 import { eq } from "drizzle-orm";
 
 export async function ensureDatabaseInitialized() {
   try {
-    // 1. Tables Utilisateurs & Auth (Exécutées via poolConnection brut sans formatage Drizzle)
+    const dbName = targetDatabase || "test";
+
+    // 0. S'assurer d'être sur la base cible et non sur le catalogue système mysql
+    try {
+      await poolConnection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
+    } catch {
+      // Ignorer si les droits CREATE DATABASE sont restreints ou si la base existe déjà
+    }
+    await poolConnection.query(`USE \`${dbName}\`;`);
+
+    // 1. Tables Utilisateurs & Auth (Exécutées avec préfixe explicite pour éviter tout conflit avec mysql.user)
     await poolConnection.query(`
-      CREATE TABLE IF NOT EXISTS \`user\` (
+      CREATE TABLE IF NOT EXISTS \`${dbName}\`.\`user\` (
         \`id\` varchar(255) NOT NULL PRIMARY KEY,
         \`name\` varchar(255),
         \`email\` varchar(255) NOT NULL UNIQUE,
@@ -19,7 +29,7 @@ export async function ensureDatabaseInitialized() {
     `);
 
     await poolConnection.query(`
-      CREATE TABLE IF NOT EXISTS \`account\` (
+      CREATE TABLE IF NOT EXISTS \`${dbName}\`.\`account\` (
         \`userId\` varchar(255) NOT NULL,
         \`type\` varchar(255) NOT NULL,
         \`provider\` varchar(255) NOT NULL,
@@ -36,7 +46,7 @@ export async function ensureDatabaseInitialized() {
     `);
 
     await poolConnection.query(`
-      CREATE TABLE IF NOT EXISTS \`session\` (
+      CREATE TABLE IF NOT EXISTS \`${dbName}\`.\`session\` (
         \`sessionToken\` varchar(255) NOT NULL PRIMARY KEY,
         \`userId\` varchar(255) NOT NULL,
         \`expires\` timestamp NOT NULL
@@ -45,7 +55,7 @@ export async function ensureDatabaseInitialized() {
 
     // 2. Table Cultures
     await poolConnection.query(`
-      CREATE TABLE IF NOT EXISTS \`culture\` (
+      CREATE TABLE IF NOT EXISTS \`${dbName}\`.\`culture\` (
         \`id\` varchar(50) NOT NULL PRIMARY KEY,
         \`name\` varchar(255) NOT NULL,
         \`price\` int NOT NULL,
@@ -61,7 +71,7 @@ export async function ensureDatabaseInitialized() {
 
     // 3. Table Commandes
     await poolConnection.query(`
-      CREATE TABLE IF NOT EXISTS \`commande\` (
+      CREATE TABLE IF NOT EXISTS \`${dbName}\`.\`commande\` (
         \`id\` varchar(100) NOT NULL PRIMARY KEY,
         \`clientId\` varchar(255) NOT NULL,
         \`cultureId\` varchar(50) NOT NULL,

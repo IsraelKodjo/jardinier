@@ -11,9 +11,24 @@ const isLocal =
   databaseUrl.includes("127.0.0.1") ||
   databaseUrl.includes("jardinier-mysql");
 
+// Déterminer le nom de la base de données (si non spécifié ou si 'mysql', on bascule sur 'test' pour TiDB Cloud)
+export let targetDatabase = "jardiniers";
+try {
+  const urlObj = new URL(databaseUrl.replace("mysql://", "http://"));
+  const pathPart = urlObj.pathname.replace(/^\//, "").split("?")[0].trim();
+  if (pathPart && pathPart !== "mysql") {
+    targetDatabase = pathPart;
+  } else if (!isLocal) {
+    targetDatabase = "test"; // Base par défaut de TiDB Cloud
+  }
+} catch {
+  if (!isLocal) targetDatabase = "test";
+}
+
 // Création du pool de connexion MySQL avec support SSL automatique pour le cloud
 export const poolConnection = mysql.createPool({
   uri: databaseUrl,
+  database: targetDatabase,
   ssl: !isLocal && !databaseUrl.includes("ssl=") ? { rejectUnauthorized: false } : undefined,
   waitForConnections: true,
   connectionLimit: 10,
