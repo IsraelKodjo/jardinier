@@ -120,17 +120,27 @@ export async function ensureDatabaseInitialized() {
         \`rendementEstime\` int NOT NULL,
         \`dateSemis\` varchar(50),
         \`dateDispo\` varchar(50),
-        \`image\` varchar(500),
+        \`image\` longtext,
         \`status\` varchar(50) DEFAULT 'EN_COURS',
         \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    // Migration douce pour s'assurer que la colonne image existe
+    // Migration douce pour s'assurer que la colonne image existe et supporte les grands formats / Base64
     try {
-      await poolConnection.query(`ALTER TABLE \`${dbName}\`.\`production\` ADD COLUMN \`image\` varchar(500);`);
+      await poolConnection.query(`ALTER TABLE \`${dbName}\`.\`production\` ADD COLUMN \`image\` longtext;`);
     } catch {
       // Ignorer si la colonne existe déjà
+    }
+    try {
+      await poolConnection.query(`ALTER TABLE \`${dbName}\`.\`production\` MODIFY COLUMN \`image\` longtext;`);
+    } catch {
+      // Ignorer
+    }
+    try {
+      await poolConnection.query(`ALTER TABLE \`${dbName}\`.\`culture\` MODIFY COLUMN \`image\` longtext;`);
+    } catch {
+      // Ignorer
     }
 
     // 6. Insertion initiale des cultures si la table est vide

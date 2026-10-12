@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, CheckCircle2, Calendar, MapPin, Sprout, TrendingUp, Maximize, Loader2, Camera, X, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Calendar, MapPin, Sprout, TrendingUp, Maximize, Loader2, Camera, X, Image as ImageIcon, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -9,6 +9,48 @@ import {
   getJardinierParcellesAction,
   createProductionAction,
 } from "../../actions";
+
+// Compression et conversion ultra-rapide côté client (résolution HD optimisée)
+function compressImage(file: File, maxWidth = 1000, maxHeight = 1000, quality = 0.75): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(event.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+}
 
 export default function PublierCulture() {
   const router = useRouter();
@@ -18,8 +60,10 @@ export default function PublierCulture() {
   const [parcellesList, setParcellesList] = useState<any[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Gestion de la photo
   const [customImage, setCustomImage] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [useCatalogFallback, setUseCatalogFallback] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   const [formData, setFormData] = useState({
     cultureId: "",
@@ -57,32 +101,43 @@ export default function PublierCulture() {
   const selectedCulture = culturesList.find((c) => c.id === formData.cultureId);
   const selectedParcelle = parcellesList.find((p) => p.id === formData.parcelleId);
 
-  const activeImage = customImage || selectedCulture?.image || null;
+  // L'image active : soit la photo uploadée par l'utilisateur, soit l'image du catalogue si expressément cochée
+  const activeImage = customImage ? customImage : (useCatalogFallback ? selectedCulture?.image : null);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsUploading(true);
+    setIsProcessingImage(true);
     try {
-      const data = new FormData();
-      data.append("file", file);
+      // 1. Compression et affichage IMMÉDIAT côté navigateur (0 seconde d'attente)
+      const dataUrl = await compressImage(file);
+      setCustomImage(dataUrl);
+      setUseCatalogFallback(false);
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: data,
-      });
-
-      const result = await res.json();
-      if (result.url) {
-        setCustomImage(result.url);
-      } else {
-        alert(result.error || "Erreur lors du téléversement de l'image.");
+      // 2. Tentative d'upload en arrière-plan vers /api/upload si disponible
+      try {
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", file);
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formDataUpload,
+        });
+        if (res.ok) {
+          const result = await res.json();
+          if (result.url) {
+            setCustomImage(result.url);
+          }
+        }
+      } catch (uploadErr) {
+        // En cas d'erreur serveur, le dataUrl local est déjà prêt et fonctionne dans la base
+        console.warn("Upload serveur indisponible, conservation de l'image locale :", uploadErr);
       }
     } catch (err) {
-      alert("Impossible d'envoyer l'image.");
+      console.error("Erreur traitement image :", err);
+      alert("Impossible de charger cette image.");
     } finally {
-      setIsUploading(false);
+      setIsProcessingImage(false);
     }
   };
 
@@ -320,85 +375,107 @@ export default function PublierCulture() {
               {/* Photo de la production */}
               <div className="sm:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                  Photo de la production / parcelle
+                  Photo de votre production ou de votre parcelle
                 </label>
-                <div className="p-4 rounded-2xl border border-gray-200 bg-gray-50/70 flex flex-col sm:flex-row items-center gap-5">
-                  {/* Prévisualisation */}
-                  <div className="relative w-28 h-28 rounded-xl overflow-hidden bg-white border border-gray-200 shadow-xs shrink-0 flex items-center justify-center">
-                    {activeImage ? (
-                      <img
-                        src={activeImage}
-                        alt="Aperçu production"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center text-gray-400 p-2 text-center">
-                        <Camera className="w-7 h-7 mb-1 text-gray-400" />
-                        <span className="text-[10px]">Aucune photo</span>
-                      </div>
-                    )}
-                    {customImage && (
-                      <button
-                        type="button"
-                        onClick={() => setCustomImage(null)}
-                        className="absolute top-1.5 right-1.5 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 shadow-sm transition-colors cursor-pointer"
-                        title="Supprimer la photo personnalisée"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
 
-                  {/* Actions & info */}
-                  <div className="flex-1 text-center sm:text-left space-y-2">
-                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                      <label className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 hover:border-green-600 hover:text-green-700 text-gray-700 text-xs font-semibold rounded-xl cursor-pointer shadow-xs transition-all">
-                        {isUploading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin text-green-600" />
-                            <span>Téléversement...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Camera className="w-4 h-4 text-green-600" />
-                            <span>{customImage ? "Changer la photo" : "Prendre / Ajouter une photo"}</span>
-                          </>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          disabled={isUploading}
-                          onChange={handleImageUpload}
+                <div className="p-5 rounded-2xl border border-gray-200 bg-gray-50/70 space-y-4">
+                  <div className="flex flex-col sm:flex-row items-center gap-5">
+                    {/* Cadre Prévisualisation */}
+                    <div className="relative w-32 h-32 rounded-2xl overflow-hidden bg-white border border-gray-200 shadow-xs shrink-0 flex items-center justify-center">
+                      {activeImage ? (
+                        <img
+                          src={activeImage}
+                          alt="Aperçu production"
+                          className="w-full h-full object-cover"
                         />
-                      </label>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-gray-400 p-3 text-center">
+                          <Camera className="w-8 h-8 mb-1.5 text-gray-300" />
+                          <span className="text-[11px] text-gray-400 leading-tight">Aucune photo</span>
+                        </div>
+                      )}
 
                       {customImage && (
                         <button
                           type="button"
                           onClick={() => setCustomImage(null)}
-                          className="px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                          className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1.5 shadow-sm transition-colors cursor-pointer"
+                          title="Supprimer la photo"
                         >
-                          Rétablir l'image catalogue
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
 
-                    <p className="text-xs text-gray-500 leading-relaxed">
+                    {/* Zone de sélection */}
+                    <div className="flex-1 text-center sm:text-left space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
+                        <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-xl cursor-pointer shadow-xs transition-colors">
+                          {isProcessingImage ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Chargement de la photo...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Camera className="w-4 h-4" />
+                              <span>
+                                {customImage ? "Changer la photo de mon appareil" : "Choisir une photo depuis mon appareil"}
+                              </span>
+                            </>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={isProcessingImage}
+                            onChange={handleImageUpload}
+                          />
+                        </label>
+
+                        {customImage && (
+                          <button
+                            type="button"
+                            onClick={() => setCustomImage(null)}
+                            className="px-3.5 py-2 text-xs font-medium text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                          >
+                            Supprimer ma photo
+                          </button>
+                        )}
+                      </div>
+
                       {customImage ? (
-                        <span className="text-emerald-700 font-medium">
-                          ✓ Votre photo réelle a été téléchargée avec succès et sera associée à cette production.
-                        </span>
-                      ) : selectedCulture?.image ? (
-                        <span>
-                          Photo standard issue du catalogue. Vous pouvez prendre une photo de vos plants sur le terrain pour la remplacer.
-                        </span>
+                        <div className="flex items-center gap-2 text-xs text-emerald-700 font-medium">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>Photo réelle chargée avec succès depuis votre appareil.</span>
+                        </div>
+                      ) : useCatalogFallback ? (
+                        <div className="flex items-center gap-2 text-xs text-blue-700 font-medium">
+                          <ImageIcon className="w-4 h-4 text-blue-600 shrink-0" />
+                          <span>Illustration du catalogue ({selectedCulture?.name}) sélectionnée.</span>
+                        </div>
                       ) : (
-                        <span>
-                          Prenez une photo de vos semis, plants ou de la parcelle depuis votre smartphone ou PC.
-                        </span>
+                        <p className="text-xs text-gray-500">
+                          Prenez une photo de vos plants sur le terrain ou sélectionnez un fichier depuis votre téléphone ou ordinateur (JPG, PNG, WebP).
+                        </p>
                       )}
-                    </p>
+
+                      {/* Option alternative : utiliser l'image du catalogue si disponible */}
+                      {!customImage && selectedCulture?.image && (
+                        <div className="pt-2 border-t border-gray-200">
+                          <button
+                            type="button"
+                            onClick={() => setUseCatalogFallback(!useCatalogFallback)}
+                            className="text-xs text-emerald-700 hover:text-emerald-800 font-medium hover:underline inline-flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            {useCatalogFallback
+                              ? "Ne pas utiliser l'illustration du catalogue"
+                              : `Ou utiliser l'image d'illustration du catalogue (${selectedCulture.name})`}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

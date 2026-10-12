@@ -5,6 +5,7 @@ import {
   primaryKey,
   varchar,
   boolean,
+  longtext,
 } from "drizzle-orm/mysql-core"
 import type { AdapterAccount } from "next-auth/adapters"
 
@@ -123,7 +124,7 @@ export const cultures = mysqlTable("culture", {
   maturationDays: int("maturationDays").notNull(),
   category: varchar("category", { length: 100 }).notNull(),
   description: varchar("description", { length: 1000 }),
-  image: varchar("image", { length: 500 }),
+  image: longtext("image"),
   available: boolean("available").default(true),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
 });
@@ -178,7 +179,7 @@ export const productions = mysqlTable("production", {
   rendementEstime: int("rendementEstime").notNull(),
   dateSemis: varchar("dateSemis", { length: 50 }),
   dateDispo: varchar("dateDispo", { length: 50 }),
-  image: varchar("image", { length: 500 }), // Photo réelle de la production prise par le jardinier
+  image: longtext("image"), // Photo réelle de la production prise par le jardinier (URL ou Base64)
   status: varchar("status", { length: 50 }).default("EN_COURS"),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
 });
