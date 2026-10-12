@@ -1,5 +1,5 @@
 import { db, poolConnection } from "./index";
-import { cultures } from "./schema";
+import { cultures, users } from "./schema";
 
 export async function ensureDatabaseInitialized() {
   try {
