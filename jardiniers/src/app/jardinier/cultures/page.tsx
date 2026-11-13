@@ -114,6 +114,9 @@ export default function MesCultures() {
                   <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Disponibilité prévue
                   </th>
+                  <th scope="col" className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Protection & Traitements
+                  </th>
                   <th scope="col" className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
@@ -160,6 +163,19 @@ export default function MesCultures() {
                         <Calendar className="w-3.5 h-3.5 text-gray-400" />
                         {prod.dateDispo || "Non renseignée"}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Link
+                        href={`/jardinier/calendrier?prodId=${prod.id}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-semibold transition-colors shadow-2xs"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>
+                          {prod.traitementsCount > 0
+                            ? `${prod.traitementsCount} traitement(s)`
+                            : "Planifier pesticides"}
+                        </span>
+                      </Link>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                       <button

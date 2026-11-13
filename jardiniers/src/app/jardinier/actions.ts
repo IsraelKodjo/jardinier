@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/db";
-import { parcelles, productions, cultures, users } from "@/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { parcelles, productions, cultures, users, traitements } from "@/db/schema";
+import { eq, desc, and, asc } from "drizzle-orm";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -22,7 +22,7 @@ async function ensureInit() {
   }
 }
 
-// 2. Récupérer toutes les parcelles du jardinier connecté
+// 2. Récupérer toutes les parcelles du jardinier connecté avec le suivi multi-cultures
 export async function getJardinierParcellesAction() {
   await ensureInit();
   const jardinierId = await getConnectedJardinierId();
@@ -35,7 +35,28 @@ export async function getJardinierParcellesAction() {
       .where(eq(parcelles.jardinierId, jardinierId))
       .orderBy(desc(parcelles.createdAt));
 
-    return userParcelles;
+    const userProductions = await db
+      .select()
+      .from(productions)
+      .where(eq(productions.jardinierId, jardinierId));
+
+    return userParcelles.map((p) => {
+      const activeProds = userProductions.filter((pr) => pr.parcelleId === p.id);
+      const usedSurfaceHa = activeProds.reduce((acc, curr) => {
+        const s = parseFloat(curr.surfaceUtilisee.replace(",", "."));
+        return acc + (isNaN(s) ? 0 : s);
+      }, 0);
+      const totalSurfaceHa = parseFloat(p.surface.replace(",", ".")) || 0;
+      const remainingSurfaceHa = Math.max(0, totalSurfaceHa - usedSurfaceHa);
+
+      return {
+        ...p,
+        productions: activeProds,
+        culturesCount: activeProds.length,
+        usedSurface: Number(usedSurfaceHa.toFixed(2)),
+        remainingSurface: Number(remainingSurfaceHa.toFixed(2)),
+      };
+    });
   } catch (error) {
     console.error("Erreur getJardinierParcellesAction :", error);
     return [];
@@ -128,7 +149,19 @@ export async function getJardinierProductionsAction() {
       .where(eq(productions.jardinierId, jardinierId))
       .orderBy(desc(productions.createdAt));
 
-    return userProductions;
+    const userTraitements = await db
+      .select()
+      .from(traitements)
+      .where(eq(traitements.jardinierId, jardinierId));
+
+    return userProductions.map((p) => {
+      const prodTraitements = userTraitements.filter((t) => t.productionId === p.id);
+      return {
+        ...p,
+        traitementsCount: prodTraitements.length,
+        pendingTraitementsCount: prodTraitements.filter((t) => t.status === "PLANIFIE").length,
+      };
+    });
   } catch (error) {
     console.error("Erreur getJardinierProductionsAction :", error);
     return [];
@@ -263,5 +296,258 @@ export async function getJardinierDashboardStatsAction() {
       recentParcelles: [],
       recentProductions: [],
     };
+  }
+}
+
+// 10. Récupérer tous les traitements phytosanitaires d'une production
+export async function getProductionTraitementsAction(productionId: string) {
+  await ensureInit();
+  const jardinierId = await getConnectedJardinierId();
+  if (!jardinierId) return [];
+
+  try {
+    return await db
+      .select()
+      .from(traitements)
+      .where(and(eq(traitements.productionId, productionId), eq(traitements.jardinierId, jardinierId)))
+      .orderBy(asc(traitements.dateTraitement));
+  } catch (error) {
+    console.error("Erreur getProductionTraitementsAction :", error);
+    return [];
+  }
+}
+
+// 11. Récupérer tous les traitements phytosanitaires du jardinier pour le calendrier global
+export async function getAllJardinierTraitementsAction() {
+  await ensureInit();
+  const jardinierId = await getConnectedJardinierId();
+  if (!jardinierId) return [];
+
+  try {
+    const list = await db
+      .select({
+        id: traitements.id,
+        productionId: traitements.productionId,
+        dateTraitement: traitements.dateTraitement,
+        produit: traitements.produit,
+        typeProduit: traitements.typeProduit,
+        cible: traitements.cible,
+        dosage: traitements.dosage,
+        stade: traitements.stade,
+        delaiAvantRecolteJours: traitements.delaiAvantRecolteJours,
+        status: traitements.status,
+        notes: traitements.notes,
+        createdAt: traitements.createdAt,
+        cultureName: productions.cultureName,
+        dateSemis: productions.dateSemis,
+        dateDispo: productions.dateDispo,
+        image: productions.image,
+        parcelleId: productions.parcelleId,
+        parcelleLocation: parcelles.location,
+      })
+      .from(traitements)
+      .innerJoin(productions, eq(traitements.productionId, productions.id))
+      .leftJoin(parcelles, eq(productions.parcelleId, parcelles.id))
+      .where(eq(traitements.jardinierId, jardinierId))
+      .orderBy(asc(traitements.dateTraitement));
+
+    return list;
+  } catch (error) {
+    console.error("Erreur getAllJardinierTraitementsAction :", error);
+    return [];
+  }
+}
+
+// 12. Créer un traitement phytosanitaire (Pesticide date par date)
+export async function createTraitementAction(data: {
+  productionId: string;
+  dateTraitement: string;
+  produit: string;
+  typeProduit?: string;
+  cible?: string;
+  dosage?: string;
+  stade?: string;
+  delaiAvantRecolteJours?: number;
+  status?: string;
+  notes?: string;
+}) {
+  await ensureInit();
+  const jardinierId = await getConnectedJardinierId();
+  if (!jardinierId) {
+    return { success: false, error: "Vous devez être connecté pour planifier un traitement." };
+  }
+
+  try {
+    const id = `TRT-${Date.now().toString(36).toUpperCase()}`;
+
+    await db.insert(traitements).values({
+      id,
+      productionId: data.productionId,
+      jardinierId,
+      dateTraitement: data.dateTraitement,
+      produit: data.produit,
+      typeProduit: data.typeProduit || "Insecticide",
+      cible: data.cible || null,
+      dosage: data.dosage || null,
+      stade: data.stade || null,
+      delaiAvantRecolteJours: Number(data.delaiAvantRecolteJours) || 0,
+      status: data.status || "PLANIFIE",
+      notes: data.notes || null,
+    });
+
+    revalidatePath("/jardinier");
+    revalidatePath("/jardinier/cultures");
+    revalidatePath("/jardinier/calendrier");
+    return { success: true, traitementId: id };
+  } catch (error: any) {
+    console.error("Erreur createTraitementAction :", error);
+    return { success: false, error: error?.message || "Impossible d'enregistrer le traitement." };
+  }
+}
+
+// 13. Mettre à jour le statut d'un traitement (ex: Marquer comme Effectué)
+export async function updateTraitementStatusAction(traitementId: string, status: "PLANIFIE" | "EFFECTUE" | "REPORTE") {
+  const jardinierId = await getConnectedJardinierId();
+  if (!jardinierId) return { success: false, error: "Non autorisé" };
+
+  try {
+    await db
+      .update(traitements)
+      .set({ status })
+      .where(and(eq(traitements.id, traitementId), eq(traitements.jardinierId, jardinierId)));
+
+    revalidatePath("/jardinier");
+    revalidatePath("/jardinier/cultures");
+    revalidatePath("/jardinier/calendrier");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Erreur updateTraitementStatusAction :", error);
+    return { success: false, error: error?.message };
+  }
+}
+
+// 14. Supprimer un traitement
+export async function deleteTraitementAction(traitementId: string) {
+  const jardinierId = await getConnectedJardinierId();
+  if (!jardinierId) return { success: false, error: "Non autorisé" };
+
+  try {
+    await db
+      .delete(traitements)
+      .where(and(eq(traitements.id, traitementId), eq(traitements.jardinierId, jardinierId)));
+
+    revalidatePath("/jardinier");
+    revalidatePath("/jardinier/cultures");
+    revalidatePath("/jardinier/calendrier");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Erreur deleteTraitementAction :", error);
+    return { success: false, error: error?.message };
+  }
+}
+
+// 15. Générer un calendrier prévisionnel de traitements pour une production
+export async function generatePrevisionalTraitementsAction(productionId: string) {
+  await ensureInit();
+  const jardinierId = await getConnectedJardinierId();
+  if (!jardinierId) return { success: false, error: "Non autorisé" };
+
+  try {
+    const [prod] = await db
+      .select()
+      .from(productions)
+      .where(and(eq(productions.id, productionId), eq(productions.jardinierId, jardinierId)));
+
+    if (!prod || !prod.dateSemis) {
+      return { success: false, error: "Production ou date de semis introuvable." };
+    }
+
+    const startDate = new Date(prod.dateSemis);
+    const addDays = (d: Date, days: number) => {
+      const copy = new Date(d);
+      copy.setDate(copy.getDate() + days);
+      return copy.toISOString().split("T")[0];
+    };
+
+    const defaultProgram = [
+      {
+        days: 7,
+        stade: "Levée & Enracinement",
+        produit: "Purin d'ortie / Ail-Piment macéré (Bio)",
+        typeProduit: "Répulsif bio & Fongicide naturel",
+        cible: "Fonte des semis & ravageurs du sol (taupins, vers gris)",
+        dosage: "1 L pour 10 L d'eau en arrosage au pied",
+        delaiAvantRecolteJours: 0,
+        notes: "Application douce au pied des jeunes plantules le matin tôt.",
+      },
+      {
+        days: 21,
+        stade: "Croissance végétative",
+        produit: "Huile de Neem pure (Azadirachtine)",
+        typeProduit: "Insecticide biologique",
+        cible: "Pucerons, aleurodes (mouches blanches) & thrips",
+        dosage: "30 ml dans 15 L d'eau + 1 cuillère savon noir",
+        delaiAvantRecolteJours: 3,
+        notes: "Pulvériser sous les feuilles en fin d'après-midi hors fort ensoleillement.",
+      },
+      {
+        days: 38,
+        stade: "Pré-floraison",
+        produit: "Bouillie Bordelaise (Sulfate de cuivre)",
+        typeProduit: "Fongicide minéral préventif",
+        cible: "Mildiou, alternariose et bactérioses foliaires",
+        dosage: "120 g dans 10 L d'eau",
+        delaiAvantRecolteJours: 5,
+        notes: "Traitement protecteur préventif avant l'apparition des fleurs ouvertes.",
+      },
+      {
+        days: 55,
+        stade: "Nouaison & Fructification",
+        produit: "Bacillus thuringiensis (Bt)",
+        typeProduit: "Bio-insecticide sélectif",
+        cible: "Chenilles défoliatrices, noctuelles et foreuses de fruits",
+        dosage: "20 g dans 10 L d'eau",
+        delaiAvantRecolteJours: 1,
+        notes: "Très sélectif, respecte les pollinisateurs et les abeilles.",
+      },
+      {
+        days: 72,
+        stade: "Grossissement des fruits",
+        produit: "Savon noir potassique + Huile de Neem",
+        typeProduit: "Insecticide & Acaricide de contact",
+        cible: "Acariens tétranyques, cochenilles & pucerons tardifs",
+        dosage: "25 ml Neem + 30 ml Savon noir pour 10 L d'eau",
+        delaiAvantRecolteJours: 3,
+        notes: "Dernière protection avant maturation. Respecter le délai de 3 jours.",
+      },
+    ];
+
+    for (const item of defaultProgram) {
+      const treatmentDate = addDays(startDate, item.days);
+      const id = `TRT-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
+
+      await db.insert(traitements).values({
+        id,
+        productionId: prod.id,
+        jardinierId,
+        dateTraitement: treatmentDate,
+        produit: item.produit,
+        typeProduit: item.typeProduit,
+        cible: item.cible,
+        dosage: item.dosage,
+        stade: item.stade,
+        delaiAvantRecolteJours: item.delaiAvantRecolteJours,
+        status: "PLANIFIE",
+        notes: item.notes,
+      });
+    }
+
+    revalidatePath("/jardinier");
+    revalidatePath("/jardinier/cultures");
+    revalidatePath("/jardinier/calendrier");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Erreur generatePrevisionalTraitementsAction :", error);
+    return { success: false, error: error?.message || "Erreur lors de la génération." };
   }
 }

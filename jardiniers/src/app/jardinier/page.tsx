@@ -106,7 +106,7 @@ export default function JardinierDashboard() {
       {/* Actions rapides */}
       <div className="mb-8">
         <h2 className="text-base font-bold text-gray-900 mb-4">Actions Rapides</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             href="/jardinier/parcelle/nouvelle"
             className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between h-36 group cursor-pointer"
@@ -118,7 +118,7 @@ export default function JardinierDashboard() {
               <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
             </div>
             <div>
-              <span className="font-bold text-gray-900 text-base block">Déclarer une parcelle (GPS)</span>
+              <span className="font-bold text-gray-900 text-base block">Déclarer parcelle</span>
               <span className="text-xs text-gray-500 mt-0.5 block">Relevé GPS du terrain</span>
             </div>
           </Link>
@@ -134,8 +134,8 @@ export default function JardinierDashboard() {
               <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
             </div>
             <div>
-              <span className="font-bold text-gray-900 text-base block">Publier une culture</span>
-              <span className="text-xs text-gray-500 mt-0.5 block">Ajouter une production en cours</span>
+              <span className="font-bold text-gray-900 text-base block">Déclarer une culture</span>
+              <span className="text-xs text-gray-500 mt-0.5 block">Ajouter sur une parcelle</span>
             </div>
           </Link>
 
@@ -151,7 +151,23 @@ export default function JardinierDashboard() {
             </div>
             <div>
               <span className="font-bold text-gray-900 text-base block">Gérer mes parcelles</span>
-              <span className="text-xs text-gray-500 mt-0.5 block">Liste et détails cartographiques</span>
+              <span className="text-xs text-gray-500 mt-0.5 block">Multi-cultures & surfaces</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/jardinier/calendrier"
+            className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between h-36 group cursor-pointer"
+          >
+            <div className="flex justify-between items-start">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-purple-600" />
+              </div>
+              <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
+            </div>
+            <div>
+              <span className="font-bold text-gray-900 text-base block">Calendrier & Pesticides</span>
+              <span className="text-xs text-gray-500 mt-0.5 block">Traitements date par date</span>
             </div>
           </Link>
         </div>

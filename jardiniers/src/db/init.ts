@@ -143,7 +143,26 @@ export async function ensureDatabaseInitialized() {
       // Ignorer
     }
 
-    // 6. Insertion initiale des cultures si la table est vide
+    // 6. Table Traitements phytosanitaires et pesticides date par date
+    await poolConnection.query(`
+      CREATE TABLE IF NOT EXISTS \`${dbName}\`.\`traitement\` (
+        \`id\` varchar(100) NOT NULL PRIMARY KEY,
+        \`productionId\` varchar(100) NOT NULL,
+        \`jardinierId\` varchar(255) NOT NULL,
+        \`dateTraitement\` varchar(50) NOT NULL,
+        \`produit\` varchar(255) NOT NULL,
+        \`typeProduit\` varchar(100) DEFAULT 'Insecticide',
+        \`cible\` varchar(255),
+        \`dosage\` varchar(100),
+        \`stade\` varchar(100),
+        \`delaiAvantRecolteJours\` int DEFAULT 0,
+        \`status\` varchar(50) DEFAULT 'PLANIFIE',
+        \`notes\` varchar(1000),
+        \`createdAt\` timestamp DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    // 7. Insertion initiale des cultures si la table est vide
     const existingCultures = await db.select().from(cultures);
     if (existingCultures.length === 0) {
       await db.insert(cultures).values([

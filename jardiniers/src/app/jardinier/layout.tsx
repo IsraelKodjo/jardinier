@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Leaf, LayoutDashboard, ShoppingBag, Map, Sprout, Settings, LogOut, Menu, X, Bell, Layers, ShieldAlert, CheckCircle, ShieldCheck, Plus, MapPin, Users, TrendingUp } from "lucide-react";
+import { Leaf, LayoutDashboard, ShoppingBag, Map, Sprout, Settings, LogOut, Menu, X, Bell, Layers, ShieldAlert, CheckCircle, ShieldCheck, Plus, MapPin, Users, TrendingUp, Calendar } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -13,7 +13,8 @@ export default function JardinierLayout({ children }: { children: React.ReactNod
     { name: "Mon Tableau de bord", href: "/jardinier", icon: LayoutDashboard },
     { name: "Mes Parcelles", href: "/jardinier/parcelles", icon: Map },
     { name: "Déclarer Parcelle", href: "/jardinier/parcelle/nouvelle", icon: MapPin },
-    { name: "Mes Cultures", href: "/jardinier/cultures", icon: Sprout }
+    { name: "Mes Cultures", href: "/jardinier/cultures", icon: Sprout },
+    { name: "Calendrier & Traitements", href: "/jardinier/calendrier", icon: Calendar },
   ];
 
   return (

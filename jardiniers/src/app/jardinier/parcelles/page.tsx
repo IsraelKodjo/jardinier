@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Map, Plus, MapPin, Trash2, Loader2, Compass } from "lucide-react";
+import { Map, Plus, MapPin, Trash2, Loader2, Compass, Sprout, Calendar } from "lucide-react";
 import Link from "next/link";
 import { getJardinierParcellesAction, deleteParcelleAction } from "../actions";
 
@@ -111,20 +111,81 @@ export default function MesParcelles() {
 
                 <div className="grid grid-cols-2 gap-2 mt-3 mb-4">
                   <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                    <span className="block text-[10px] text-gray-500 uppercase font-semibold">Surface</span>
+                    <span className="block text-[10px] text-gray-500 uppercase font-semibold">Surface Totale</span>
                     <span className="block text-sm font-bold text-gray-900 mt-0.5">
                       {parcelle.surface} Ha
                     </span>
                   </div>
                   <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-                    <span className="block text-[10px] text-gray-500 uppercase font-semibold">GPS</span>
-                    <span className="block text-xs font-bold text-gray-900 mt-0.5 truncate">
-                      {parcelle.lat && parcelle.lng ? `${parcelle.lat}, ${parcelle.lng}` : "Enregistré"}
+                    <span className="block text-[10px] text-gray-500 uppercase font-semibold">Disponible</span>
+                    <span className="block text-xs font-bold text-emerald-700 mt-0.5">
+                      {parcelle.remainingSurface !== undefined ? `${parcelle.remainingSurface} Ha libre` : "Enregistré"}
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
+                {/* Section multi-cultures sur la même parcelle */}
+                <div className="mb-4 bg-gray-50/70 p-3 rounded-xl border border-gray-100">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="font-semibold text-gray-700 flex items-center gap-1">
+                      <Sprout className="w-3.5 h-3.5 text-emerald-600" />
+                      Cultures sur cette parcelle ({parcelle.culturesCount || 0})
+                    </span>
+                    <span className="text-[11px] text-gray-500 font-medium">
+                      {parcelle.usedSurface || 0} / {parcelle.surface} Ha
+                    </span>
+                  </div>
+
+                  {/* Jauge d'occupation de la parcelle */}
+                  <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden flex mb-2.5">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          ((parcelle.usedSurface || 0) / (parseFloat(parcelle.surface) || 1)) * 100
+                        )}%`,
+                      }}
+                    />
+                  </div>
+
+                  {parcelle.productions && parcelle.productions.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 mb-2.5">
+                      {parcelle.productions.map((prod: any) => (
+                        <span
+                          key={prod.id}
+                          className="text-[11px] bg-white text-emerald-900 border border-emerald-200 px-2 py-0.5 rounded-md font-medium shadow-2xs"
+                        >
+                          🌱 {prod.cultureName} ({prod.surfaceUtilisee} Ha)
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-gray-400 italic mb-2">Aucune culture encore déclarée.</p>
+                  )}
+
+                  {/* Actions multi-cultures */}
+                  <div className="flex items-center gap-2 pt-1 border-t border-gray-200/60">
+                    <Link
+                      href={`/jardinier/cultures/nouvelle?parcelleId=${parcelle.id}`}
+                      className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 hover:underline"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Ajouter une culture
+                    </Link>
+                    {parcelle.culturesCount > 0 && (
+                      <Link
+                        href={`/jardinier/calendrier`}
+                        className="text-[11px] font-medium text-gray-600 hover:text-gray-900 flex items-center gap-1 hover:underline ml-auto"
+                      >
+                        <Calendar className="w-3 h-3 text-gray-400" />
+                        Calendrier
+                      </Link>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
                   <span className="text-xs text-gray-400">
                     {parcelle.createdAt
                       ? new Date(parcelle.createdAt).toLocaleDateString("fr-FR")

@@ -183,3 +183,24 @@ export const productions = mysqlTable("production", {
   status: varchar("status", { length: 50 }).default("EN_COURS"),
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
 });
+
+// 8. Table des Traitements phytosanitaires et pesticides date par date
+export const traitements = mysqlTable("traitement", {
+  id: varchar("id", { length: 100 }).notNull().primaryKey(),
+  productionId: varchar("productionId", { length: 100 })
+    .notNull()
+    .references(() => productions.id, { onDelete: "cascade" }),
+  jardinierId: varchar("jardinierId", { length: 255 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  dateTraitement: varchar("dateTraitement", { length: 50 }).notNull(), // Format YYYY-MM-DD
+  produit: varchar("produit", { length: 255 }).notNull(), // Nom du pesticide / produit de traitement
+  typeProduit: varchar("typeProduit", { length: 100 }).default("Insecticide"), // Insecticide, Fongicide, Bio-pesticide, etc.
+  cible: varchar("cible", { length: 255 }), // Cibles (pucerons, mildiou, chenilles, etc.)
+  dosage: varchar("dosage", { length: 100 }), // ex: "30 ml / 15L d'eau"
+  stade: varchar("stade", { length: 100 }), // Semis, Levée, Croissance, Floraison, Fructification, etc.
+  delaiAvantRecolteJours: int("delaiAvantRecolteJours").default(0), // DAR (jours de sécurité avant récolte)
+  status: varchar("status", { length: 50 }).default("PLANIFIE"), // PLANIFIE, EFFECTUE, REPORTE
+  notes: varchar("notes", { length: 1000 }),
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+});

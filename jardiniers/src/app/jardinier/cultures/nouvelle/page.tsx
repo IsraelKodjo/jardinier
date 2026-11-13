@@ -1,13 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { ArrowLeft, CheckCircle2, Calendar, MapPin, Sprout, TrendingUp, Maximize, Loader2, Camera, X, Image as ImageIcon, Sparkles } from "lucide-react";
+import { Suspense, useState, useEffect } from "react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Calendar,
+  MapPin,
+  Sprout,
+  TrendingUp,
+  Maximize,
+  Loader2,
+  Camera,
+  X,
+  Image as ImageIcon,
+  Sparkles,
+  Layers,
+  ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   getCatalogueCulturesForJardinierAction,
   getJardinierParcellesAction,
   createProductionAction,
+  generatePrevisionalTraitementsAction,
 } from "../../actions";
 
 // Compression et conversion ultra-rapide côté client (résolution HD optimisée)
@@ -52,8 +68,11 @@ function compressImage(file: File, maxWidth = 1000, maxHeight = 1000, quality = 
   });
 }
 
-export default function PublierCulture() {
+function PublierCultureContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedParcelleId = searchParams.get("parcelleId");
+
   const [isLoading, setIsLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [culturesList, setCulturesList] = useState<any[]>([]);
@@ -64,6 +83,9 @@ export default function PublierCulture() {
   const [customImage, setCustomImage] = useState<string | null>(null);
   const [useCatalogFallback, setUseCatalogFallback] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
+
+  // Option de génération du calendrier des pesticides
+  const [autoGenerateTraitements, setAutoGenerateTraitements] = useState(true);
 
   const [formData, setFormData] = useState({
     cultureId: "",
@@ -86,13 +108,23 @@ export default function PublierCulture() {
       if (cults.length > 0) {
         setFormData((prev) => ({ ...prev, cultureId: cults[0].id }));
       }
+
       if (parcs.length > 0) {
-        setFormData((prev) => ({ ...prev, parcelleId: parcs[0].id }));
+        const found = preselectedParcelleId && parcs.find((p) => p.id === preselectedParcelleId);
+        const targetParc = found || parcs[0];
+        setFormData((prev) => ({
+          ...prev,
+          parcelleId: targetParc.id,
+          surfaceUtilisee:
+            targetParc.remainingSurface !== undefined && targetParc.remainingSurface > 0
+              ? String(targetParc.remainingSurface)
+              : prev.surfaceUtilisee,
+        }));
       }
       setPageLoading(false);
     }
     loadData();
-  }, []);
+  }, [preselectedParcelleId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -102,7 +134,7 @@ export default function PublierCulture() {
   const selectedParcelle = parcellesList.find((p) => p.id === formData.parcelleId);
 
   // L'image active : soit la photo uploadée par l'utilisateur, soit l'image du catalogue si expressément cochée
-  const activeImage = customImage ? customImage : (useCatalogFallback ? selectedCulture?.image : null);
+  const activeImage = customImage ? customImage : useCatalogFallback ? selectedCulture?.image : null;
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -130,7 +162,6 @@ export default function PublierCulture() {
           }
         }
       } catch (uploadErr) {
-        // En cas d'erreur serveur, le dataUrl local est déjà prêt et fonctionne dans la base
         console.warn("Upload serveur indisponible, conservation de l'image locale :", uploadErr);
       }
     } catch (err) {
@@ -183,8 +214,11 @@ export default function PublierCulture() {
       image: activeImage || undefined,
     });
 
-    if (res.success) {
-      router.push("/jardinier/cultures");
+    if (res.success && res.productionId) {
+      if (autoGenerateTraitements) {
+        await generatePrevisionalTraitementsAction(res.productionId);
+      }
+      router.push(`/jardinier/calendrier?prodId=${res.productionId}`);
       router.refresh();
     } else {
       setErrorMessage(res.error || "Impossible d'enregistrer la production.");
@@ -211,9 +245,9 @@ export default function PublierCulture() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Publier une Production</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Déclarer une Culture sur Parcelle</h1>
           <p className="text-sm text-gray-500">
-            Enregistrez les cultures réelles que vous produisez sur vos parcelles.
+            Associez une culture à une parcelle et générez son calendrier de traitements phytosanitaires.
           </p>
         </div>
       </div>
@@ -238,10 +272,10 @@ export default function PublierCulture() {
           <div className="p-6 border-b border-gray-100 bg-gray-50">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
               <Sprout className="w-5 h-5 text-green-600" />
-              Détails de la production
+              Détails de la culture & calendrier cultural
             </h2>
             <p className="text-xs text-gray-500 mt-1">
-              Les données seront enregistrées en base et permettront aux clients de commander vos récoltes.
+              Vous pouvez implanter plusieurs cultures sur une même parcelle selon vos disponibilités de terrain.
             </p>
           </div>
 
@@ -267,13 +301,13 @@ export default function PublierCulture() {
                 >
                   {culturesList.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name} — Maturation : {c.maturationDays} jours ({c.category})
+                      {c.name} — Cycle : {c.maturationDays} jours ({c.category})
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Parcelle */}
+              {/* Parcelle d'implantation */}
               <div className="sm:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   Parcelle d'implantation *
@@ -287,16 +321,70 @@ export default function PublierCulture() {
                 >
                   {parcellesList.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.location} (Réf : {p.id}) — Surface totale : {p.surface} Ha
+                      {p.location} (Réf : {p.id}) — Total : {p.surface} Ha{" "}
+                      {p.remainingSurface !== undefined ? `• Libre : ${p.remainingSurface} Ha` : ""}
                     </option>
                   ))}
                 </select>
+
+                {/* Détail multi-cultures sur la même parcelle */}
+                {selectedParcelle && (
+                  <div className="mt-3 p-3.5 bg-blue-50/70 border border-blue-200/70 rounded-xl text-xs space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold text-blue-900 flex items-center gap-1.5">
+                        <Layers className="w-4 h-4 text-blue-600" />
+                        Multi-cultures sur la parcelle « {selectedParcelle.location} »
+                      </span>
+                      <span className="font-mono text-blue-800 bg-white px-2 py-0.5 rounded border border-blue-200">
+                        Surface totale : {selectedParcelle.surface} Ha | Disponible :{" "}
+                        {selectedParcelle.remainingSurface ?? selectedParcelle.surface} Ha
+                      </span>
+                    </div>
+
+                    {selectedParcelle.productions && selectedParcelle.productions.length > 0 ? (
+                      <div>
+                        <p className="text-gray-600 mb-1">
+                          Cultures déjà installées sur ce même terrain ({selectedParcelle.productions.length}) :
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedParcelle.productions.map((pr: any) => (
+                            <span
+                              key={pr.id}
+                              className="bg-white text-gray-800 border border-gray-200 px-2 py-0.5 rounded-md font-medium"
+                            >
+                              🌱 {pr.cultureName} ({pr.surfaceUtilisee} Ha)
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-blue-700">
+                        Cette parcelle est entièrement disponible. Vous pouvez y associer plusieurs cultures différentes.
+                      </p>
+                    )}
+
+                    {selectedParcelle.remainingSurface !== undefined && selectedParcelle.remainingSurface > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            surfaceUtilisee: String(selectedParcelle.remainingSurface),
+                          }))
+                        }
+                        className="text-emerald-700 font-semibold hover:underline inline-block pt-1 cursor-pointer"
+                      >
+                        → Allouer toute la surface disponible restante ({selectedParcelle.remainingSurface} Ha)
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Surface allouée */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Surface allouée (Hectares) *
+                  Surface allouée à cette culture (Hectares) *
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
@@ -311,7 +399,7 @@ export default function PublierCulture() {
                     value={formData.surfaceUtilisee}
                     onChange={handleChange}
                     className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm text-gray-900 outline-none"
-                    placeholder="Ex: 1.5"
+                    placeholder="Ex: 0.8"
                   />
                 </div>
               </div>
@@ -319,7 +407,7 @@ export default function PublierCulture() {
               {/* Rendement estimé */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Rendement estimé (kg) *
+                  Rendement total estimé (kg) *
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
@@ -338,10 +426,10 @@ export default function PublierCulture() {
                 </div>
               </div>
 
-              {/* Date de semis */}
+              {/* Date de semis & Calcul calendrier */}
               <div className="sm:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Date de semis / Lancement *
+                  Date de semis / Lancement de la graine *
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
@@ -358,18 +446,39 @@ export default function PublierCulture() {
                 </div>
 
                 {calculateDisponibilite() && (
-                  <div className="mt-4 bg-emerald-50 p-4 rounded-xl border border-emerald-200 flex items-start gap-3">
+                  <div className="mt-3.5 bg-emerald-50 p-4 rounded-xl border border-emerald-200 flex items-start gap-3">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
                       <p className="text-sm font-semibold text-emerald-900">
-                        Disponibilité prévue : <strong>{calculateDisponibilite()}</strong>
+                        Date de récolte estimée : <strong>{calculateDisponibilite()}</strong>
                       </p>
                       <p className="text-xs text-emerald-700 mt-0.5">
-                        Calculé automatiquement d'après la durée de cycle de la variété ({selectedCulture?.maturationDays} jours).
+                        Cycle complet de {selectedCulture?.maturationDays || 90} jours entre le semis et la maturité.
                       </p>
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Générateur de calendrier & traitements pesticides */}
+              <div className="sm:col-span-2 bg-gradient-to-r from-emerald-50 to-green-50 p-4 rounded-2xl border border-emerald-200">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoGenerateTraitements}
+                    onChange={(e) => setAutoGenerateTraitements(e.target.checked)}
+                    className="mt-1 h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-sm font-bold text-emerald-950 flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      Générer automatiquement le calendrier des traitements & pesticides
+                    </span>
+                    <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
+                      Planifie automatiquement les interventions phytosanitaires date par date entre le semis et la récolte (traitements biologiques conseillés : Huile de Neem, Bouillie bordelaise, Bacillus thuringiensis, etc.). Vous pourrez personnaliser chaque traitement sur le calendrier.
+                    </p>
+                  </div>
+                </label>
               </div>
 
               {/* Photo de la production */}
@@ -420,7 +529,9 @@ export default function PublierCulture() {
                             <>
                               <Camera className="w-4 h-4" />
                               <span>
-                                {customImage ? "Changer la photo de mon appareil" : "Choisir une photo depuis mon appareil"}
+                                {customImage
+                                  ? "Changer la photo de mon appareil"
+                                  : "Choisir une photo depuis mon appareil"}
                               </span>
                             </>
                           )}
@@ -456,7 +567,7 @@ export default function PublierCulture() {
                         </div>
                       ) : (
                         <p className="text-xs text-gray-500">
-                          Prenez une photo de vos plants sur le terrain ou sélectionnez un fichier depuis votre téléphone ou ordinateur (JPG, PNG, WebP).
+                          Prenez une photo de vos plants sur le terrain ou sélectionnez un fichier depuis votre téléphone ou ordinateur.
                         </p>
                       )}
 
@@ -496,12 +607,12 @@ export default function PublierCulture() {
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Publication en cours...
+                    Enregistrement...
                   </>
                 ) : (
                   <>
                     <Sprout className="w-4 h-4" />
-                    Publier ma production
+                    Valider et ouvrir le calendrier
                   </>
                 )}
               </button>
@@ -510,5 +621,20 @@ export default function PublierCulture() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PublierCulture() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-3xl mx-auto py-16 text-center">
+          <Loader2 className="w-8 h-8 text-green-600 animate-spin mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">Chargement...</p>
+        </div>
+      }
+    >
+      <PublierCultureContent />
+    </Suspense>
   );
 }
